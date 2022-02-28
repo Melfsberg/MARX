@@ -21,16 +21,19 @@ def marxpwm():
     set(pins,0b00)     # (10+y)sätt pin 0 låg (pwm)
     label("off1")
     jmp(x_dec,"off1")  # (11+x+y) räkna ner till x=0
-    nop()        [4]   # (12+x+y) 4 nop för att matcha 1a halvan
-    mov(osr,isr)       # (13+x+y) hämtar isr till osr
-    out(y, 16)         # (14+x+y) osr första 16 bitar till y
-    out(x, 16)         # (15+x+y) osr restrerande 16 bitar till x
-    set(pins,0b11)     # (16+x+y) sätt pin 0 och 1 hög (pwm+select b)
+    nop()              # (12+x+y) 4 nop för att matcha 1a halvan
+    nop()              # (13+x+y) 4 nop för att matcha 1a halvan
+    nop()              # (14+x+y) 4 nop för att matcha 1a halvan
+    nop()              # (15+x+y) 4 nop för att matcha 1a halvan
+    mov(osr,isr)       # (16+x+y) hämtar isr till osr
+    out(y, 16)         # (17+x+y) osr första 16 bitar till y
+    out(x, 16)         # (18+x+y) osr restrerande 16 bitar till x
+    set(pins,0b11)     # (19+x+y) sätt pin 0 och 1 hög (pwm+select b)
     label("on2")
-    jmp(y_dec,"on2")   # (17+x+y+y) räkna ner till y=0                
-    set(pins,0b00)     # (18+x+y+y) sätt pin 0 och 1 låg (pwm+select b)
+    jmp(y_dec,"on2")   # (20+x+y+y) räkna ner till y=0                
+    set(pins,0b00)     # (21+x+y+y) sätt pin 0 och 1 låg (pwm+select b)
     label("off2")
-    jmp(x_dec,"off2")  # (19+x+x+y+y) räkna ner till y=1
+    jmp(x_dec,"off2")  # (22+x+x+y+y) räkna ner till y=1
     wrap()             # börja om
     label("end")
     nop                # gör ingenting om noll har skickats

@@ -21,10 +21,10 @@ def marxpwm():
     set(pins,0b00)     # (10+y)sätt pin 0 låg (pwm)
     label("off1")
     jmp(x_dec,"off1")  # (11+x+y) räkna ner till x=0
-    nop()              # (12+x+y) 4 nop för att matcha 1a halvan
-    nop()              # (13+x+y) 4 nop för att matcha 1a halvan
-    nop()              # (14+x+y) 4 nop för att matcha 1a halvan
-    nop()              # (15+x+y) 4 nop för att matcha 1a halvan
+    nop()              # (12+x+y) 1 nop för att motsvara mov(x,ist) i första halvan
+    nop()              # (13+x+y) 1 nop för att motsvara pull(noblock) i första halvan
+    nop()              # (14+x+y) 1 nop för att motsvara mov(isr,osr) i första halvan
+    set(pins,0b10)     # (15+x+y) för att motsvara jmp(not_x,"end" i första halvan
     mov(osr,isr)       # (16+x+y) hämtar isr till osr
     out(y, 16)         # (17+x+y) osr första 16 bitar till y
     out(x, 16)         # (18+x+y) osr restrerande 16 bitar till x
@@ -38,7 +38,6 @@ def marxpwm():
     label("end")
     nop                # gör ingenting om noll har skickats
     jmp("end")         
-
 
 class PWMMARX:
     # initierar med statemachine nummer (oftast 0), base pin för utsignaler och arbetsfrekvens
@@ -68,7 +67,7 @@ class PWMMARX:
 
         
 
-pwm=PWMMARX(0,14,20000)
+pwm=PWMMARX(0,14,2000)
 
 pwm.duty(500,500)
 
@@ -81,8 +80,3 @@ pwm.duty(900,100)
 pwm.start()
 time.sleep(2)
 pwm.stop()
-
-
-
-
-    

@@ -1,0 +1,68 @@
+import machine
+import time
+import rp2
+
+@rp2.asm_pio(set_init=(rp2.PIO.OUT_LOW, rp2.PIO.OUT_LOW))
+def pwmpio():
+    
+
+    wrap_target()
+    mov(x,isr)
+    pull(noblock)#pull noblock.. ingen data x> osr
+    mov(isr, osr)
+    
+    mov(osr,isr)
+    out(y, 16)
+    out(x, 16)
+    jmp(not_x,"end")
+    set(pins,0b01)    
+    label("on1")
+    jmp(y_dec,"on1")                
+    
+    mov(osr,isr)
+    out(y, 16)
+    out(x, 16)
+    set(pins,0b00)    
+    label("off1")
+    jmp(x_dec,"off1") 
+   
+    mov(osr,isr)
+    out(y, 16)
+    out(x, 16)
+    set(pins,0b11)    
+    label("on2")
+    jmp(y_dec,"on2")                
+    
+    mov(osr,isr)
+    out(y, 16)
+    out(x, 16)
+    set(pins,0b00)    
+    label("off2")
+    jmp(x_dec,"off2") 
+    wrap()
+
+    label("end")
+    set(pins,0b00)
+    jmp("end")
+    
+sm=rp2.StateMachine(0,pwmpio,freq=2000,set_base=machine.Pin(14))
+
+
+
+        
+
+
+
+
+sm.put(0x_0108_0108)
+
+sm.active(1)
+
+time.sleep(1)
+sm.put(0x_0408_0108)
+    
+time.sleep(1)
+sm.put(0x_0018_0208)
+
+time.sleep(1)
+sm.put(0x00000000)

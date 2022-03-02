@@ -45,9 +45,11 @@ class PWMMARX:
     
     def __init__(self, sm_id, pin, count_freq):
         self._sm = rp2.StateMachine(sm_id, marxpwm, freq=count_freq, set_base=machine.Pin(pin))
-        self._trigout = machine.Pin(4,machine.Pin.OUT,value=0)
-        self._hvin = machine.Pin(14, machine.Pin.IN, machine.Pin.PULL_DOWN)
         self._timeout=machine.Timer()
+     
+        self._hvin = machine.Pin(4, machine.Pin.IN, machine.Pin.PULL_DOWN)
+        self._trigout = machine.Pin(14,machine.Pin.OUT,value=0)
+        self._auxout = machine.Pin(15,machine.Pin.OUT,value=0)
 
         self.SETPOINT_HV_DT_US=1500
         self.PWM_ON_TICS=100
@@ -77,6 +79,7 @@ class PWMMARX:
         self._hvin.irq(handler=None)
 
     def charge_marx(self):
+        self.send_aux()
         self._hvin_current_dt_us=self.SETPOINT_HV_DT_US*128
         self._hvin_prev_time_us=utime.ticks_us()
         self.charging=True
@@ -97,6 +100,11 @@ class PWMMARX:
         self._trigout.value(1)
         utime.sleep_ms(1)
         self._trigout.value(0)
+        
+    def send_aux(self):
+        self._auxout.value(1)
+        utime.sleep_ms(1)
+        self._auxout.value(0)
     
     def _timeout_irqhandler(self,t):           # avbrottsrutin när uppladdningstimern maxat ut        
         self.stop_pwm()
@@ -110,6 +118,10 @@ class PWMMARX:
          self._hvin.irq(trigger= machine.Pin.IRQ_FALLING, handler=self._hvin_irqhandler)
               
 pwm=PWMMARX(0,0,6_000_000)
+
+
+            
+
 
 
             

@@ -6,7 +6,7 @@ import rp2
 # pin0 - pwm signal, pin1 växlar låg och hög vid varannan pwm puls
 # y - första 16 bitar som sänds - pwm tid hög i klockcykler
 # x - nästa  16 bitar som sänds - pwm tid låg i klockcykler
-def marxpwm():    
+def pwmpio():    
     wrap_target()    
     mov(x,isr)         # (1) sparar isr -> x för att använda om ingen ny indata
     pull(noblock)      # (2) pull noblock.. ny data till osr, ingen ny indata x ->  osr
@@ -39,22 +39,26 @@ def marxpwm():
     nop                # gör ingenting om noll har skickats
     jmp("end")         
 
-class PWMMARX:
+class RCCharger:
     # initierar med statemachine nummer (oftast 0), base pin för utsignaler och arbetsfrekvens
     # pin0 - pwm signal, pin1 växlar låg och hög vid varannan pwm puls    
     def __init__(self, sm_id, pin, count_freq):
-        self._sm = rp2.StateMachine(sm_id, marxpwm, freq=count_freq, set_base=machine.Pin(pin))
+        self._sm = rp2.StateMachine(sm_id, pwmpio, freq=count_freq, set_base=machine.Pin(pin))
         self._timeout=machine.Timer()
         self._hvin = machine.Pin(4, machine.Pin.IN, machine.Pin.PULL_DOWN)
         self._trigout = machine.Pin(2,machine.Pin.OUT,value=0)
         self._auxout = machine.Pin(15,machine.Pin.OUT,value=0)
+        self._emergencyin = machine.Pin(5, machine.Pin.IN, machine.Pin.PULL_DOWN)
+
         self.hvin_current_dt_us=0
         self._hvin_prev_time_us=0
+        
         self.timed_out=False
         self.triggered=False
         self.charging=False
+        self.emergency=False
 
-        self.SETPOINT_HV_DT_US=2000
+        self.SETPOINT_HV_DT_US=1000
         self.PWM_ON_TICS=100
         self.PWM_OFF_TICS=900
         self.CHARGE_TIMEOUT_MS=200
@@ -78,14 +82,22 @@ class PWMMARX:
         send=duty_off+(duty_on<<16)
         self._sm.put(send)       
 
-    def charge_marx(self):
+    def charge(self):
         self.triggered=False
         self.timed_out=False
+        self.emergency=False
+        
+        if not(self._emergencyin.value()):
+            self.emergency=True
+            print("emergency shutdown")
+            return
+
         self.charging=True
         self.hvin_current_dt_us=self.SETPOINT_HV_DT_US*128
         self._hvin_prev_time_us=utime.ticks_us()        
         self._timeout.init(mode=machine.Timer.ONE_SHOT,period=self.CHARGE_TIMEOUT_MS,callback=self._timeout_irqhandler)
         self._hvin.irq(trigger= machine.Pin.IRQ_FALLING, handler=self._hvin_irqhandler)
+
         self.send_sync()
         self.reset_pwm()        
         self.set_duty_pwm(self.PWM_OFF_TICS,self.PWM_ON_TICS)
@@ -107,15 +119,6 @@ class PWMMARX:
         self._auxout.value(1)
         utime.sleep_ms(1)
         self._auxout.value(0)
-        
-    def meas_pulse(self):                      # metod för att mäta inkommande pulser för testning
-        temp=self.SETPOINT_HV_DT_US
-        self.SETPOINT_HV_DT_US=0
-        self._hvin.irq(trigger= machine.Pin.IRQ_FALLING, handler=self._hvin_irqhandler)
-        
-        while True:
-            utime.sleep_ms(100)
-            print(1_000_000/self.hvin_current_dt_us)
 
     def _timeout_irqhandler(self,t):           # avbrottsrutin när uppladdningstimern maxat ut        
         self.stop_pwm()
@@ -133,5 +136,5 @@ class PWMMARX:
              self._hvin_prev_time_us=now
              self._hvin.irq(trigger= machine.Pin.IRQ_FALLING, handler=self._hvin_irqhandler)
               
-pwm=PWMMARX(0,0,6_000_000)
+marx=RCCharger(0,0,6_000_000)
 

@@ -50,91 +50,84 @@ class RCCharger:
         self._auxout = machine.Pin(15,machine.Pin.OUT,value=0)
         self._emergencyin = machine.Pin(5, machine.Pin.IN, machine.Pin.PULL_DOWN)
 
-        self.hvin_current_dt_us=0
+        self._hvin_current_dt_us=0
         self._hvin_prev_time_us=0
-        
-        self.timed_out=False
-        self.triggered=False
-        self.charging=False
-        self.emergency=False
+        self._charging=False
 
-        self.SETPOINT_HV_DT_US=1000
+        self.SETPOINT_HV_DT_US=1200
         self.PWM_ON_TICS=100
         self.PWM_OFF_TICS=900
         self.CHARGE_TIMEOUT_MS=200
         self.SYNC_DELAY=0
                 
-    def start_pwm(self):                 # duty behöver sättas innan, annars sätts maskinen i 'stopp'
+    def _start_pwm(self):                 # duty behöver sättas innan, annars sätts maskinen i 'stopp'
+        self._charging=True
         self._sm.active(1)
   
-    def stop_pwm(self):                  # stoppar pwm omedelbart, för att köra igen behöver duty sättas + maskinen resettas
+    def _stop_pwm(self):                  # stoppar pwm omedelbart, för att köra igen behöver duty sättas + maskinen resettas
         self._sm.put(0x00000000)
         self._hvin.irq(handler=None)
         self._timeout.deinit()
-        self.charging=False
-        self.timed_out=True
+        self._emergencyin.irq(handler=None)
+        self._charging=False
 
-    def reset_pwm(self):                 # efter en stop behöver 'maskinen' resettas innan duty och start        
+    def _reset_pwm(self):                 # efter en stop behöver 'maskinen' resettas innan duty och start        
         self._sm.active(0)
         self._sm.restart()
     
-    def set_duty_pwm(self,duty_off,duty_on): # y pwm hög i klockcykler, x pwm låg i klockcykler, max 16 bitars tal (65536)     
+    def _set_duty_pwm(self,duty_off,duty_on): # y pwm hög i klockcykler, x pwm låg i klockcykler, max 16 bitars tal (65536)     
         send=duty_off+(duty_on<<16)
         self._sm.put(send)       
 
     def charge(self):
-        self.triggered=False
-        self.timed_out=False
-        self.emergency=False
         
         if not(self._emergencyin.value()):
-            self.emergency=True
-            print("emergency shutdown")
+            print("no emergency shutdown input signal")
             return
-
-        self.charging=True
-        self.hvin_current_dt_us=self.SETPOINT_HV_DT_US*128
+        
+        self._hvin_current_dt_us=self.SETPOINT_HV_DT_US*128
         self._hvin_prev_time_us=utime.ticks_us()        
         self._timeout.init(mode=machine.Timer.ONE_SHOT,period=self.CHARGE_TIMEOUT_MS,callback=self._timeout_irqhandler)
         self._hvin.irq(trigger= machine.Pin.IRQ_FALLING, handler=self._hvin_irqhandler)
+        self._emergencyin.irq(trigger= machine.Pin.IRQ_FALLING, handler=self._emergency_irqhandler)
 
         self.send_sync()
-        self.reset_pwm()        
-        self.set_duty_pwm(self.PWM_OFF_TICS,self.PWM_ON_TICS)
-        self.start_pwm()
+        self._reset_pwm()        
+        self._set_duty_pwm(self.PWM_OFF_TICS,self.PWM_ON_TICS)
+        self._start_pwm()
 
-        while self.charging:
+        while self._charging:
             pass       
                 
-    def send_trigg(self):
-        utime.sleep_us(1000)       
-        print("dt",self.hvin_current_dt_us,"us. f", 1000000/self.hvin_current_dt_us,"Hz")
+    def send_trigg(self):       
+        print("triggered:",self._hvin_current_dt_us,"us /", 1000000/self._hvin_current_dt_us,"Hz")
         self._trigout.value(1)
-        utime.sleep_ms(1)
+        utime.sleep_us(1000)
         self._trigout.value(0)
-        self.triggered=True
-        print("trigged")
         
     def send_sync(self):
         self._auxout.value(1)
-        utime.sleep_ms(1)
+        utime.sleep_us(1000)
         self._auxout.value(0)
 
     def _timeout_irqhandler(self,t):           # avbrottsrutin när uppladdningstimern maxat ut        
-        self.stop_pwm()
-        self.timed_out=True
-        print("timed out")
+        self._stop_pwm()
+        print("timed out:",self.CHARGE_TIMEOUT_MS,"ms")
                                     
     def _hvin_irqhandler(self,pin):            # avbrottsrutin vid puls från uppladdningsspänningspulståget
          self._hvin.irq(handler=None)     
          now=utime.ticks_us()
-         self.hvin_current_dt_us=utime.ticks_diff(now,self._hvin_prev_time_us)
-         if self.hvin_current_dt_us<=self.SETPOINT_HV_DT_US:
-            self.stop_pwm()
+         self._hvin_current_dt_us=utime.ticks_diff(now,self._hvin_prev_time_us)
+         if self._hvin_current_dt_us<=self.SETPOINT_HV_DT_US:
+            self._stop_pwm()
             self.send_trigg()
          else:
              self._hvin_prev_time_us=now
              self._hvin.irq(trigger= machine.Pin.IRQ_FALLING, handler=self._hvin_irqhandler)
-              
+             
+    def _emergency_irqhandler(self,pin):
+        self._emergencyin.irq(handler=None)
+        self._stop_pwm()
+        print("emergency shutdown")
+                
 marx=RCCharger(0,0,6_000_000)
-

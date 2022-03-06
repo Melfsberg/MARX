@@ -33,7 +33,7 @@ def pwmpio():
     jmp(y_dec,"on2")   # (20+x+y+y) räkna ner till y=0                
     set(pins,0b00)     # (21+x+y+y) sätt pin 0 och 1 låg (pwm+select b)
     label("off2")
-    jmp(x_dec,"off2")  # (22+x+x+y+y) räkna ner till y=1
+    jmp(x_dec,"off2")  # (22+x+x+y+y) räkna ner till x=0
     wrap()             # börja om
     label("end")
     nop                # gör ingenting om noll har skickats

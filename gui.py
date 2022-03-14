@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+import serial
 
 class MainGUI(tk.Tk):
     def __init__(self):
@@ -14,8 +14,10 @@ class MainGUI(tk.Tk):
         self.SCALE=1000/14.5
         
         self.title("Rapid Capacitor Charger")
-        self.geometry("365x365+100+100")
+        self.geometry("365x400+100+100")
         self.bind_all("<Return>", self.enter)  
+
+        self.protocol("WM_DELETE_WINDOW", self.exit)
 
         self.f1=tk.Frame(self.master)
         self.f2=tk.Frame(self.master)
@@ -47,30 +49,31 @@ class MainGUI(tk.Tk):
         self.timeout_in.grid(row=4,column=1,sticky="W")
         tk.Label(self.f1,text="ms").grid(row=4, column=2)
 
-        tk.Button(self.f2,text ="CHARGE!",command=self.charge,height=4, width=15,bg='red').grid(row=0,column=0,pady=10,padx=20)
-        tk.Button(self.f2, text="Send Sync", command=self.send_sync).grid(row=1,column=0,pady=10,padx=10)
+        tk.Button(self.f2,text ="CHARGE!",command=self.charge,height=4, width=12,bg='red').grid(row=2,column=1,pady=10,padx=30)
+        tk.Button(self.f2, text="Send Sync", command=self.send_sync).grid(row=3,column=1,pady=10)
 
-        tk.Button(self.f3, text="APPLY", command=self.apply).grid(row=11,column=0,padx=15)
+        tk.Button(self.f3, text="Apply", command=self.apply).grid(row=11,column=0,padx=15)
         tk.Button(self.f3, text="Default",command=self.default).grid(row=11,column=1,padx=15)
         tk.Button(self.f3, text="Get Info",command=self.getinfo).grid(row=11,column=2,padx=15)
         tk.Button(self.f3, text="Settings",command=self.settings).grid(row=11,column=3,padx=15)
 
-        self.ser_data_text=tk.Text(self.f4,height=7,width=42)
+        self.ser_data_text=tk.Text(self.f4,height=10,width=42)
         self.ser_data_text.pack(side=tk.LEFT)
         self.scroll_bar = tk.Scrollbar(self.f4,command=self.ser_data_text.yview)
         self.scroll_bar.pack(side=tk.RIGHT,fill='both')
         self.ser_data_text['yscrollcommand'] = self.scroll_bar.set
         self.ser_data_text.bind('<Button-3>', self.clrser)
+        self.ser_data_text.bind("<Key>", lambda e: "break")
              
         self.f1.grid(row=0,column=0) # entry
         self.f2.grid(row=0,column=1) # CHARGE BTN + Send AUX
         self.f3.grid(row=1,column=0,columnspan=2,pady=15) # button row                
         self.f4.grid(row=2,column=0,pady=20,padx=5,columnspan=2) # ser mon
    
-    def enter(self,f):
+    def enter(self,*_):
         self.apply()
 
-    def clrser(self,f):
+    def clrser(self,*_):
         self.ser_data_text.delete("1.0","end")        
 
     def default(self):
@@ -111,34 +114,33 @@ class MainGUI(tk.Tk):
         except:
             return
         
-        pwon="marx.PWM_ON_TICS=" + str(10*self.duty_cycle) + "\n"
-        pwoff="marx.PWM_OFF_TICS=" + str(1000-10*self.duty_cycle)  + "\n"
-        hv="marx.SETPOINT_HV_DT_US=" + str(int(self.dtus))  + "\n"        
-        sd="marx.SYNC_DELAY=" + str(self.sync_delay)  + "\n"
-        to="marx.CHARGE_TIMEOUT_MS=" + str(self.charge_timeout)  + "\n"
+        pwon="marx.PWM_ON_TICS=" + str(10*self.duty_cycle) + "\r"
+        pwoff="marx.PWM_OFF_TICS=" + str(1000-10*self.duty_cycle)  + "\r"
+        hv="marx.SETPOINT_HV_DT_US=" + str(int(self.dtus))  + "\r"        
+        sd="marx.SYNC_DELAY=" + str(self.sync_delay)  + "\r"
+        to="marx.CHARGE_TIMEOUT_MS=" + str(self.charge_timeout)  + "\r"
 
-        self.ser_data_text.insert(tk.END,pwon)
-        self.ser_data_text.insert(tk.END,pwoff)
-        self.ser_data_text.insert(tk.END,hv)
-        self.ser_data_text.insert(tk.END,sd)
-        self.ser_data_text.insert(tk.END,to)       
-        self.ser_data_text.see(tk.END)       
-        
-    def getinfo(self):
-        try:
-            self.ser_data_text.insert(tk.END,str(self.charge_voltage) + "\n")
-            self.ser_data_text.insert(tk.END,str(self.duty_cycle) + "\n")
-            self.ser_data_text.insert(tk.END,str(self.sync_delay) + "\n")
-            self.ser_data_text.insert(tk.END,str(self.trigg_delay) + "\n")
-            self.ser_data_text.insert(tk.END,str(self.charge_timeout) + "\n")
-            self.ser_data_text.see(tk.END)
-        except:
-            return        
+        self.ser.write("\r".encode())
+        self.ser.write(pwon.encode())
+        self.ser.write(pwoff.encode())
+        self.ser.write(hv.encode())
+        self.ser.write(sd.encode())
+        self.ser.write(to.encode())
+          
+    def getinfo(self):  
+        self.ser.write("\r".encode())
+        self.ser.write("marx.PWM_ON_TICS\r".encode())
+        self.ser.write("marx.PWM_OFF_TICS\r".encode())
+        self.ser.write("marx.SETPOINT_HV_DT_US\r".encode())  
+        self.ser.write("marx.SYNC_DELAY\r".encode()) 
+        self.ser.write("marx.CHARGE_TIMEOUT_MS\r".encode())
+     
 
     def settings(self):
         pass
     
     def charge(self):
+        
         try:
             self.duty_cycle=int(self.duty_cycle_in.get())
             self.charge_voltage=float(self.charge_voltage_in.get())
@@ -148,13 +150,30 @@ class MainGUI(tk.Tk):
             self.charge_timeout=int(self.timeout_in.get())
             self.trigg_delay=int(self.trigg_delay_in.get())
         except:
-            return
-        self.ser_data_text.insert(tk.END,"marx.charge()\n")
-        self.ser_data_text.see(tk.END)
-        
+            return       
+        self.ser.write("marx.charge()\r".encode())
+
     def send_sync(self):
-        self.ser_data_text.insert(tk.END,"marx.send_sync()\n")
-        self.ser_data_text.see(tk.END)        
+        self.ser.write("\r".encode())
+        self.ser.write("marx.send_sync()\r".encode())
+        
+    def init_serial(self):
+        dev="/dev/tty.usbmodem14201"
+        self.ser=serial.Serial(dev)
+        self.read_ser()
+
+    def read_ser(self):
+        if self.ser.in_waiting:
+            self.ser_data_text.insert(tk.END,(self.ser.read(self.ser.in_waiting)))
+            self.ser_data_text.see(tk.END)
+        self._job=self.after(100,self.read_ser)
+        
+    def exit(self):
+        self.after_cancel(self._job)
+        self.ser.close()
+        self.destroy()      
 
 gui=MainGUI()
+gui.init_serial()
+
 gui.mainloop()

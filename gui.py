@@ -91,6 +91,7 @@ class MainGUI(tk.Tk):
             self.timeout_in.delete(0,tk.END)
             self.timeout_in.insert(0,str(self.charge_timeout))
         except:
+            tk.messagebox.showerror("Error!", "Kontakta Mattias!")
             return
     
     def apply(self):
@@ -102,6 +103,7 @@ class MainGUI(tk.Tk):
             self.sync_delay=int(self.sync_delay_in.get())
             self.charge_timeout=int(self.timeout_in.get())
         except:
+            tk.messagebox.showerror("Error!", "Settings not complete!")
             return
         
         pwon="marx.PWM_ON_TICS=" + str(10*self.duty_cycle) + "\r"
@@ -117,14 +119,19 @@ class MainGUI(tk.Tk):
         self.ser.write(sd.encode())
         self.ser.write(to.encode())
           
-    def getinfo(self):  
-        self.ser.write("\r".encode())
-        self.ser.write("marx.PWM_ON_TICS\r".encode())
-        self.ser.write("marx.PWM_OFF_TICS\r".encode())
-        self.ser.write("marx.SETPOINT_HV_DT_US\r".encode())  
-        self.ser.write("marx.SYNC_DELAY\r".encode()) 
-        self.ser.write("marx.CHARGE_TIMEOUT_MS\r".encode())
-     
+    def getinfo(self):
+        try:
+            self.ser.write("\r".encode())
+            self.ser.write("marx.PWM_ON_TICS\r".encode())
+            self.ser.write("marx.PWM_OFF_TICS\r".encode())
+            self.ser.write("marx.SETPOINT_HV_DT_US\r".encode())  
+            self.ser.write("marx.SYNC_DELAY\r".encode()) 
+            self.ser.write("marx.CHARGE_TIMEOUT_MS\r".encode())
+        except:
+            tk.messagebox.showerror("Error!", "No serial device!")
+
+            
+
 
     def settings(self):
         pass
@@ -138,7 +145,21 @@ class MainGUI(tk.Tk):
             self.sync_delay=int(self.sync_delay_in.get())
             self.charge_timeout=int(self.timeout_in.get())
         except:
-            return       
+            tk.messagebox.showerror("Error!", "No settings avaible!")
+            return
+        
+        pwon="marx.PWM_ON_TICS=" + str(10*self.duty_cycle) + "\r"
+        pwoff="marx.PWM_OFF_TICS=" + str(1000-10*self.duty_cycle)  + "\r"
+        hv="marx.SETPOINT_HV_DT_US=" + str(int(self.dtus))  + "\r"        
+        sd="marx.SYNC_DELAY=" + str(self.sync_delay)  + "\r"
+        to="marx.CHARGE_TIMEOUT_MS=" + str(self.charge_timeout)  + "\r"
+
+        self.ser.write("\r".encode())
+        self.ser.write(pwon.encode())
+        self.ser.write(pwoff.encode())
+        self.ser.write(hv.encode())
+        self.ser.write(sd.encode())
+        self.ser.write(to.encode())
         self.ser.write("marx.charge()\r".encode())
 
     def send_sync(self):
@@ -168,4 +189,3 @@ gui=MainGUI()
 gui.init_serial()
 
 gui.mainloop()
-

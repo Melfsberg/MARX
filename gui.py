@@ -5,11 +5,10 @@ class MainGUI(tk.Tk):
     def __init__(self):
         super().__init__()
         
-        self.DEFAULT_CHARGE_VOLTAGE=14
+        self.DEFAULT_CHARGE_VOLTAGE=10
         self.DEFAULT_DUTY_CYCLE=10
         self.DEFAULT_SYNC_DELAY=0      
-        self.DEFAULT_TRIGG_DELAY=1        
-        self.DEFAULT_CHARGE_TIMEOUT=200                
+        self.DEFAULT_CHARGE_TIMEOUT=100                
         
         self.SCALE=1000/14.5
         
@@ -39,15 +38,10 @@ class MainGUI(tk.Tk):
         self.sync_delay_in.grid(row=2, column=1,sticky="W")
         tk.Label(self.f1,text="ms").grid(row=2, column=2)
 
-        tk.Label(self.f1,text="Trigg Delay").grid(row=3,column=0, pady=5)
-        self.trigg_delay_in=tk.Entry(self.f1,width=8,justify="right")
-        self.trigg_delay_in.grid(row=3,column=1,sticky="W")
-        tk.Label(self.f1,text="ms").grid(row=3, column=2)
-
-        tk.Label(self.f1,text="Timeout").grid(row=4,column=0, pady=5)
+        tk.Label(self.f1,text="Timeout").grid(row=3,column=0, pady=5)
         self.timeout_in=tk.Entry(self.f1,width=8,justify="right")
-        self.timeout_in.grid(row=4,column=1,sticky="W")
-        tk.Label(self.f1,text="ms").grid(row=4, column=2)
+        self.timeout_in.grid(row=3,column=1,sticky="W")
+        tk.Label(self.f1,text="ms").grid(row=3, column=2)
 
         tk.Button(self.f2,text ="CHARGE!",command=self.charge,height=4, width=12,bg='red').grid(row=2,column=1,pady=10,padx=30)
         tk.Button(self.f2, text="Send Sync", command=self.send_sync).grid(row=3,column=1,pady=10)
@@ -55,7 +49,7 @@ class MainGUI(tk.Tk):
         tk.Button(self.f3, text="Apply", command=self.apply).grid(row=11,column=0,padx=15)
         tk.Button(self.f3, text="Default",command=self.default).grid(row=11,column=1,padx=15)
         tk.Button(self.f3, text="Get Info",command=self.getinfo).grid(row=11,column=2,padx=15)
-        tk.Button(self.f3, text="Settings",command=self.settings).grid(row=11,column=3,padx=15)
+        # tk.Button(self.f3, text="Settings",command=self.settings).grid(row=11,column=3,padx=15)
 
         self.ser_data_text=tk.Text(self.f4,height=10,width=42)
         self.ser_data_text.pack(side=tk.LEFT)
@@ -80,7 +74,6 @@ class MainGUI(tk.Tk):
         self.charge_voltage=self.DEFAULT_CHARGE_VOLTAGE                
         self.duty_cycle=self.DEFAULT_DUTY_CYCLE
         self.sync_delay=self.DEFAULT_SYNC_DELAY
-        self.trigg_delay=self.DEFAULT_TRIGG_DELAY
         self.charge_timeout=self.DEFAULT_CHARGE_TIMEOUT 
                 
         self.update()    
@@ -95,8 +88,6 @@ class MainGUI(tk.Tk):
             self.duty_cycle_in.insert(0,str(self.duty_cycle))
             self.sync_delay_in.delete(0,tk.END)
             self.sync_delay_in.insert(0,str(self.sync_delay))
-            self.trigg_delay_in.delete(0,tk.END)
-            self.trigg_delay_in.insert(0,str(self.trigg_delay))
             self.timeout_in.delete(0,tk.END)
             self.timeout_in.insert(0,str(self.charge_timeout))
         except:
@@ -110,7 +101,6 @@ class MainGUI(tk.Tk):
             self.dtus=1e6/self.fcharge
             self.sync_delay=int(self.sync_delay_in.get())
             self.charge_timeout=int(self.timeout_in.get())
-            self.trigg_delay=int(self.trigg_delay_in.get())
         except:
             return
         
@@ -139,8 +129,7 @@ class MainGUI(tk.Tk):
     def settings(self):
         pass
     
-    def charge(self):
-        
+    def charge(self):        
         try:
             self.duty_cycle=int(self.duty_cycle_in.get())
             self.charge_voltage=float(self.charge_voltage_in.get())
@@ -148,7 +137,6 @@ class MainGUI(tk.Tk):
             self.dtus=1e6/self.fcharge
             self.sync_delay=int(self.sync_delay_in.get())
             self.charge_timeout=int(self.timeout_in.get())
-            self.trigg_delay=int(self.trigg_delay_in.get())
         except:
             return       
         self.ser.write("marx.charge()\r".encode())
@@ -158,8 +146,11 @@ class MainGUI(tk.Tk):
         self.ser.write("marx.send_sync()\r".encode())
         
     def init_serial(self):
-        dev="/dev/tty.usbmodem14201"
+        #dev="/dev/tty.usbmodem14201"
+        dev="COM8"
+
         self.ser=serial.Serial(dev)
+        self.ser.write("\r".encode())
         self.read_ser()
 
     def read_ser(self):
@@ -177,3 +168,4 @@ gui=MainGUI()
 gui.init_serial()
 
 gui.mainloop()
+

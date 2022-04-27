@@ -49,7 +49,6 @@ class MainGUI(tk.Tk):
         tk.Button(self.f3, text="Apply", command=self.apply).grid(row=11,column=0,padx=15)
         tk.Button(self.f3, text="Default",command=self.default).grid(row=11,column=1,padx=15)
         tk.Button(self.f3, text="Get Info",command=self.getinfo).grid(row=11,column=2,padx=15)
-        # tk.Button(self.f3, text="Settings",command=self.settings).grid(row=11,column=3,padx=15)
 
         self.ser_data_text=tk.Text(self.f4,height=10,width=42)
         self.ser_data_text.pack(side=tk.LEFT)
@@ -130,9 +129,6 @@ class MainGUI(tk.Tk):
         except:
             tk.messagebox.showerror("Error!", "No serial device!")
 
-            
-
-
     def settings(self):
         pass
     
@@ -167,12 +163,17 @@ class MainGUI(tk.Tk):
         self.ser.write("marx.send_sync()\r".encode())
         
     def init_serial(self):
-        #dev="/dev/tty.usbmodem14201"
-        dev="COM8"
+        try:
+            #dev="/dev/tty.usbmodem14201"
+            dev="COM8"
 
-        self.ser=serial.Serial(dev)
-        self.ser.write("\r".encode())
-        self.read_ser()
+            self.ser=serial.Serial(dev)
+            self.ser.write("\r".encode())
+            self.read_ser()
+            
+        except:
+            tk.messagebox.showerror("Error!", "No serial device avaible!")
+
 
     def read_ser(self):
         if self.ser.in_waiting:

@@ -2,6 +2,10 @@ import machine
 import utime
 import rp2
 
+GLOBAL_PIOFREQUENCY=60_000_000
+GLOBAL_PW_TRIGG=100
+GLOBAL_PW_SYNC=100
+
 @rp2.asm_pio(set_init=(rp2.PIO.OUT_LOW, rp2.PIO.OUT_LOW))
 # pin0 - pwm signal, pin1 växlar låg och hög vid varannan pwm puls
 # y - första 16 bitar som sänds - pwm tid hög i klockcykler
@@ -54,10 +58,10 @@ class RCCharger:
         self._hvin_prev_time_us=0
         self._charging=False
 
-        self.SETPOINT_HV_DT_US=1200
+        self.SETPOINT_HV_DT_US=2000
         self.PWM_ON_TICS=100
         self.PWM_OFF_TICS=900
-        self.CHARGE_TIMEOUT_MS=200
+        self.CHARGE_TIMEOUT_MS=100
         self.SYNC_DELAY=0
                 
     def _start_pwm(self):                 # duty behöver sättas innan, annars sätts maskinen i 'stopp'
@@ -87,27 +91,34 @@ class RCCharger:
         
         self._hvin_current_dt_us=self.SETPOINT_HV_DT_US*128
         self._hvin_prev_time_us=utime.ticks_us()        
-        self._timeout.init(mode=machine.Timer.ONE_SHOT,period=self.CHARGE_TIMEOUT_MS,callback=self._timeout_irqhandler)
+        
         self._hvin.irq(trigger= machine.Pin.IRQ_FALLING, handler=self._hvin_irqhandler)
         self._emergencyin.irq(trigger= machine.Pin.IRQ_FALLING, handler=self._emergency_irqhandler)
 
-        self.send_sync()
         self._reset_pwm()        
         self._set_duty_pwm(self.PWM_OFF_TICS,self.PWM_ON_TICS)
+        
+        self.send_sync()
+        utime.sleep_ms(self.SYNC_DELAY)
+        
+        self._timeout.init(mode=machine.Timer.ONE_SHOT,period=self.CHARGE_TIMEOUT_MS,callback=self._timeout_irqhandler)
+
         self._start_pwm()
 
         while self._charging:
             pass       
                 
-    def send_trigg(self):       
+    def send_trigg(self):
+        global GLOBAL_PW_TRIGG
         print("triggered:",self._hvin_current_dt_us,"us /", 1000000/self._hvin_current_dt_us,"Hz")
         self._trigout.value(1)
-        utime.sleep_us(1000)
+        utime.sleep_us(GLOBAL_PW_TRIGG)
         self._trigout.value(0)
         
     def send_sync(self):
+        global GLOBAL_PW_SYNC
         self._auxout.value(1)
-        utime.sleep_us(1000)
+        utime.sleep_us(GLOBAL_PW_SYNC)
         self._auxout.value(0)
 
     def _timeout_irqhandler(self,t):           # avbrottsrutin när uppladdningstimern maxat ut        
@@ -130,4 +141,4 @@ class RCCharger:
         self._stop_pwm()
         print("emergency shutdown")
                 
-marx=RCCharger(0,0,6_000_000)
+marx=RCCharger(0,0,GLOBAL_PIOFREQUENCY)

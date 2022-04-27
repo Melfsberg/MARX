@@ -1,5 +1,6 @@
 import tkinter as tk
 import serial
+import serial.tools.list_ports
 
 class MainGUI(tk.Tk):
     def __init__(self):
@@ -163,10 +164,15 @@ class MainGUI(tk.Tk):
         self.ser.write("marx.send_sync()\r".encode())
         
     def init_serial(self):
+        
+        find_com = serial.tools.list_ports.comports()
+                
         try:
             #dev="/dev/tty.usbmodem14201"
-            dev="COM8"
-
+            #dev="COM8"
+            
+            dev=find_com[0][0]
+                        
             self.ser=serial.Serial(dev)
             self.ser.write("\r".encode())
             self.read_ser()

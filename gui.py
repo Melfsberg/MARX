@@ -6,12 +6,12 @@ class MainGUI(tk.Tk):
     def __init__(self):
         super().__init__()
         
+        self.SCALE=1000/14.5
+        
         self.DEFAULT_CHARGE_VOLTAGE=10
         self.DEFAULT_DUTY_CYCLE=10
         self.DEFAULT_SYNC_DELAY=0      
-        self.DEFAULT_CHARGE_TIMEOUT=100                
-        
-        self.SCALE=1000/14.5
+        self.DEFAULT_CHARGE_TIMEOUT=50                
         
         self.title("Rapid Capacitor Charger")
         self.geometry("365x400+100+100")
@@ -23,6 +23,8 @@ class MainGUI(tk.Tk):
         self.f2=tk.Frame(self.master)
         self.f3=tk.Frame(self.master)
         self.f4=tk.Frame(self.master)
+                
+        self.iconphoto(False, tk.PhotoImage(file='FOI-logotyp-farg.png'))                
                 
         tk.Label(self.f1,text="Charge Voltage").grid(row=0, column=0, pady=5)
         self.charge_voltage_in=tk.Entry(self.f1,width=8,justify="right")
@@ -63,7 +65,9 @@ class MainGUI(tk.Tk):
         self.f2.grid(row=0,column=1) # CHARGE BTN + Send AUX
         self.f3.grid(row=1,column=0,columnspan=2,pady=15) # button row                
         self.f4.grid(row=2,column=0,pady=20,padx=5,columnspan=2) # ser mon
-   
+        
+        self.init_serial()
+  
     def enter(self,*_):
         self.apply()
 
@@ -71,13 +75,13 @@ class MainGUI(tk.Tk):
         self.ser_data_text.delete("1.0","end")        
 
     def default(self):
-        self.charge_voltage=self.DEFAULT_CHARGE_VOLTAGE                
-        self.duty_cycle=self.DEFAULT_DUTY_CYCLE
-        self.sync_delay=self.DEFAULT_SYNC_DELAY
-        self.charge_timeout=self.DEFAULT_CHARGE_TIMEOUT 
-                
-        self.update()    
-        self.apply()
+        if tk.messagebox.askyesno(title='Default Settings!',message='Are You Sure?'):
+            self.charge_voltage=self.DEFAULT_CHARGE_VOLTAGE                
+            self.duty_cycle=self.DEFAULT_DUTY_CYCLE
+            self.sync_delay=self.DEFAULT_SYNC_DELAY
+            self.charge_timeout=self.DEFAULT_CHARGE_TIMEOUT                
+            self.update()    
+            self.apply()
         
     def update(self):
         try:
@@ -130,9 +134,6 @@ class MainGUI(tk.Tk):
         except:
             tk.messagebox.showerror("Error!", "No serial device!")
 
-    def settings(self):
-        pass
-    
     def charge(self):        
         try:
             self.duty_cycle=int(self.duty_cycle_in.get())
@@ -165,14 +166,12 @@ class MainGUI(tk.Tk):
         
     def init_serial(self):
         
-        find_com = serial.tools.list_ports.comports()
-                
+        find_com = serial.tools.list_ports.comports()               
         try:
             #dev="/dev/tty.usbmodem14201"
             #dev="COM8"
             
-            dev=find_com[0][0]
-                        
+            dev=find_com[0][0]                        
             self.ser=serial.Serial(dev)
             self.ser.write("\r".encode())
             self.read_ser()
@@ -180,19 +179,20 @@ class MainGUI(tk.Tk):
         except:
             tk.messagebox.showerror("Error!", "No serial device avaible!")
 
-
     def read_ser(self):
         if self.ser.in_waiting:
             self.ser_data_text.insert(tk.END,(self.ser.read(self.ser.in_waiting)))
             self.ser_data_text.see(tk.END)
-        self._job=self.after(100,self.read_ser)
+        self._serjob=self.after(100,self.read_ser)
         
     def exit(self):
-        self.after_cancel(self._job)
-        self.ser.close()
+        try:
+            self.after_cancel(self._serjob)
+            self.ser.close()
+        except:
+            pass
         self.destroy()      
 
 gui=MainGUI()
-gui.init_serial()
 
 gui.mainloop()
